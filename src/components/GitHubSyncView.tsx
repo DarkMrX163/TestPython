@@ -269,6 +269,43 @@ export function GitHubSyncView({
                     <Github className="w-4 h-4" />
                     <span>Войти через GitHub</span>
                   </button>
+                ) : githubConfig === null ? (
+                  <div className="rounded-lg border border-[#30363D] bg-[#0D1117] p-4 space-y-3 text-xs">
+                    <div className="font-mono text-[#58A6FF] font-medium">
+                      Статический режим (GitHub Pages)
+                    </div>
+                    <p className="text-[#8B949E] leading-relaxed">
+                      На GitHub Pages работает только клиентская часть без сервера OAuth. Чтобы сохранить результаты в GitHub, скопируй отчёт справа и создай новый Gist:
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                      <button
+                        type="button"
+                        onClick={handleCopyReport}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 font-mono font-medium bg-[#2EA043] hover:bg-[#3FB950] text-[#0D1117] rounded-lg transition-colors cursor-pointer whitespace-nowrap"
+                      >
+                        {copiedReport ? (
+                          <>
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Отчёт скопирован</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>1. Скопировать отчёт</span>
+                          </>
+                        )}
+                      </button>
+                      <a
+                        href="https://gist.github.com/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 font-mono text-[#E6EDF3] border border-[#30363D] hover:bg-[#21262D] rounded-lg transition-colors whitespace-nowrap"
+                      >
+                        <span>2. Открыть GitHub Gist</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  </div>
                 ) : (
                   <div className="rounded-lg border border-[#30363D] bg-[#0D1117] p-4 space-y-3 font-mono text-xs">
                     <div className="text-[#E3B341] font-medium">
@@ -279,7 +316,7 @@ export function GitHubSyncView({
                       <code className="font-mono text-[#E6EDF3]">GITHUB_CLIENT_ID</code> и{' '}
                       <code className="font-mono text-[#E6EDF3]">GITHUB_CLIENT_SECRET</code> в секреты приложения.
                     </p>
-                    {githubConfig?.callbackUrl && (
+                    {githubConfig.callbackUrl && (
                       <div className="space-y-1.5">
                         <div className="text-[#8B949E]">Authorization callback URL:</div>
                         <div className="flex items-center justify-between gap-2 px-3 py-2 rounded bg-[#161B22] border border-[#30363D]">
