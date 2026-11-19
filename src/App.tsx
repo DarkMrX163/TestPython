@@ -10,11 +10,14 @@ import type {
   ActiveTab,
   GitHubConfig,
   GitHubUser,
+  QuizMode,
   SavedGistItem,
   UserProgress,
 } from './types';
+import { playAchievementSound } from './utils/sound';
 import {
   createInitialProgress,
+  getLocalDateKey,
   loadProgress,
   normalizeProgress,
   saveProgress,
@@ -29,6 +32,7 @@ const NAV_ITEMS: Array<{ id: ActiveTab; label: string }> = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('quiz');
+  const [requestedMode, setRequestedMode] = useState<QuizMode | null>(null);
   const [progress, setProgress] = useState<UserProgress>(() => loadProgress());
   const [toastAchievement, setToastAchievement] = useState<AchievementDef | null>(null);
 
@@ -82,7 +86,7 @@ export default function App() {
         }
       }
     } catch {
-      // Server unreachable during dev restart
+      // Static hosting (e.g. GitHub Pages) or server restarting
     }
   }, [fetchSavedGists]);
 
@@ -124,6 +128,10 @@ export default function App() {
     const id = window.setTimeout(() => setToastAchievement(null), 4800);
     return () => window.clearTimeout(id);
   }, [toastAchievement]);
+
+  const handleToggleSound = useCallback(() => {
+    setProgress((prev) => ({ ...prev, soundEnabled: !prev.soundEnabled }));
+  }, []);
 
   const handleConnectGitHub = useCallback(async () => {
     setGhStatus(null);
@@ -238,6 +246,7 @@ export default function App() {
         setProgress(finalProgress);
         if (newlyUnlocked.length > 0) {
           setToastAchievement(newlyUnlocked[0]);
+          if (finalProgress.soundEnabled) playAchievementSound();
         }
         setGhStatus({
           type: 'success',
@@ -307,13 +316,17 @@ export default function App() {
       const nextDiffStats = { ...progress.difficultyStats };
       const answeredSet = new Set(progress.answeredQuestionIds);
       const correctSet = new Set(progress.correctQuestionIds);
+      const wrongSet = new Set(progress.wrongQuestionIds);
 
       let runningStreak = progress.currentStreak;
       let maxStreak = Math.max(progress.bestStreak, payload.bestStreak);
       let correctInSession = 0;
+      let mistakesFixed = progress.mistakesFixedCount;
+      let bugFixed = progress.bugFixedCount;
+      let fillBlankCorrect = progress.fillBlankCorrectCount;
 
       for (const item of payload.answers) {
-        const { topic, difficulty, id } = item.question;
+        const { topic, difficulty, id, kind } = item.question;
         answeredSet.add(id);
 
         nextTopicStats[topic] = {
@@ -327,10 +340,17 @@ export default function App() {
 
         if (item.isCorrect) {
           correctSet.add(id);
+          if (wrongSet.has(id)) {
+            wrongSet.delete(id);
+            mistakesFixed += 1;
+          }
+          if (kind === 'find-bug') bugFixed += 1;
+          if (kind === 'fill-blank') fillBlankCorrect += 1;
           correctInSession += 1;
           runningStreak += 1;
           if (runningStreak > maxStreak) maxStreak = runningStreak;
         } else {
+          wrongSet.add(id);
           runningStreak = 0;
         }
       }
@@ -340,6 +360,12 @@ export default function App() {
       const completedModes = progress.completedModes.includes(payload.mode)
         ? progress.completedModes
         : [...progress.completedModes, payload.mode];
+
+      const todayKey = getLocalDateKey();
+      const nextActivity = {
+        ...progress.activityByDate,
+        [todayKey]: (progress.activityByDate[todayKey] ?? 0) + total,
+      };
 
       const sessionRecord = {
         id: `s-${Date.now()}`,
@@ -362,7 +388,12 @@ export default function App() {
         currentStreak: runningStreak,
         answeredQuestionIds: Array.from(answeredSet),
         correctQuestionIds: Array.from(correctSet),
+        wrongQuestionIds: Array.from(wrongSet),
+        mistakesFixedCount: mistakesFixed,
+        bugFixedCount: bugFixed,
+        fillBlankCorrectCount: fillBlankCorrect,
         completedModes,
+        activityByDate: nextActivity,
         topicStats: nextTopicStats,
         difficultyStats: nextDiffStats,
         sessions: [sessionRecord, ...progress.sessions].slice(0, 40),
@@ -373,6 +404,7 @@ export default function App() {
 
       if (evaluated.newlyUnlocked.length > 0) {
         setToastAchievement(evaluated.newlyUnlocked[0]);
+        if (progress.soundEnabled) playAchievementSound();
       }
 
       return evaluated.newlyUnlocked;
@@ -445,6 +477,9 @@ export default function App() {
             progress={progress}
             githubUser={githubUser}
             syncingGitHub={syncingGitHub}
+            initialModeRequest={requestedMode}
+            onConsumeModeRequest={() => setRequestedMode(null)}
+            onToggleSound={handleToggleSound}
             onCompleteSession={handleCompleteSession}
             onQuickSaveGitHub={() => void handleSaveToGitHub(false, false)}
             onOpenGitHubTab={() => setActiveTab('github')}
@@ -455,6 +490,10 @@ export default function App() {
           <ProgressDashboard
             progress={progress}
             onStartQuiz={() => setActiveTab('quiz')}
+            onPracticeMistakes={() => {
+              setRequestedMode('mistakes');
+              setActiveTab('quiz');
+            }}
             onResetProgress={handleResetProgress}
           />
         )}

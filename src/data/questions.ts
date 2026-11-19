@@ -1,4 +1,4 @@
-import type { Difficulty, Question, TopicId } from '../types';
+import type { Difficulty, Question, QuestionKind, QuizMode, TopicId } from '../types';
 
 export const DIFFICULTY_META: Record<
   Difficulty,
@@ -24,6 +24,30 @@ export const DIFFICULTY_META: Record<
   },
 };
 
+export const QUIZ_MODE_LABELS: Record<QuizMode, string> = {
+  beginner: 'Базовый',
+  intermediate: 'Средний',
+  advanced: 'Продвинутый',
+  mixed: 'Смешанный',
+  adaptive: 'Адаптивный',
+  mistakes: 'Работа над ошибками',
+};
+
+export const QUESTION_KIND_META: Record<QuestionKind, { label: string; actionHint: string }> = {
+  choice: {
+    label: 'Выбор ответа',
+    actionHint: 'Выбери правильный вариант [1–4]',
+  },
+  'fill-blank': {
+    label: 'Дополни код',
+    actionHint: 'Впиши токен в редактор или выбери снизу',
+  },
+  'find-bug': {
+    label: 'Найди баг',
+    actionHint: 'Кликни прямо по строке с ошибкой в коде',
+  },
+};
+
 export const TOPIC_META: Record<TopicId, { label: string; shortLabel: string }> = {
   variables: { label: 'Переменные и числа', shortLabel: 'Переменные' },
   strings: { label: 'Строки и вывод', shortLabel: 'Строки' },
@@ -34,9 +58,10 @@ export const TOPIC_META: Record<TopicId, { label: string; shortLabel: string }> 
 };
 
 export const QUESTIONS: Question[] = [
-  // ===================== БАЗОВЫЙ (10 вопросов) =====================
+  // ===================== БАЗОВЫЙ (10 choice + 2 fill-blank + 2 find-bug) =====================
   {
     id: 'beg-1',
+    kind: 'choice',
     difficulty: 'beginner',
     topic: 'strings',
     prompt: 'Что выведет в консоль эта программа?',
@@ -52,6 +77,7 @@ export const QUESTIONS: Question[] = [
   },
   {
     id: 'beg-2',
+    kind: 'choice',
     difficulty: 'beginner',
     topic: 'variables',
     prompt: 'Какое число появится на экране после запуска кода?',
@@ -63,10 +89,35 @@ export const QUESTIONS: Question[] = [
     tip: 'Чтобы сложение выполнилось первым, используй круглые скобки: (x + y) * 2 даст 20.',
     hint: 'Вспомни порядок действий: что выполняется раньше — умножение или сложение?',
     terminalOutput: '13',
+    trace: [
+      {
+        line: 1,
+        note: 'Создаём переменную x со значением 7.',
+        variables: [{ name: 'x', value: '7', type: 'int', changed: true }],
+      },
+      {
+        line: 2,
+        note: 'Создаём переменную y со значением 3.',
+        variables: [
+          { name: 'x', value: '7', type: 'int' },
+          { name: 'y', value: '3', type: 'int', changed: true },
+        ],
+      },
+      {
+        line: 3,
+        note: 'Сначала считаем y * 2 = 6, затем 7 + 6 = 13 и печатаем.',
+        variables: [
+          { name: 'x', value: '7', type: 'int' },
+          { name: 'y', value: '3', type: 'int' },
+        ],
+        output: '13',
+      },
+    ],
     xp: 15,
   },
   {
     id: 'beg-3',
+    kind: 'choice',
     difficulty: 'beginner',
     topic: 'variables',
     prompt: 'Что делает оператор // в этом примере?',
@@ -78,10 +129,35 @@ export const QUESTIONS: Question[] = [
     tip: 'Обычное деление / всегда возвращает дробное число (float), а // — целую часть результата.',
     hint: 'Сколько целых яблок получит каждый друг, если делить поровну?',
     terminalOutput: '3',
+    trace: [
+      {
+        line: 1,
+        note: 'Записываем 10 яблок в переменную apples.',
+        variables: [{ name: 'apples', value: '10', type: 'int', changed: true }],
+      },
+      {
+        line: 2,
+        note: 'Записываем 3 друзей в переменную friends.',
+        variables: [
+          { name: 'apples', value: '10', type: 'int' },
+          { name: 'friends', value: '3', type: 'int', changed: true },
+        ],
+      },
+      {
+        line: 3,
+        note: '10 // 3 отбрасывает остаток 1 и возвращает целое число 3.',
+        variables: [
+          { name: 'apples', value: '10', type: 'int' },
+          { name: 'friends', value: '3', type: 'int' },
+        ],
+        output: '3',
+      },
+    ],
     xp: 15,
   },
   {
     id: 'beg-4',
+    kind: 'choice',
     difficulty: 'beginner',
     topic: 'variables',
     prompt: 'Какой тип данных покажет функция type() для переменной age?',
@@ -97,6 +173,7 @@ export const QUESTIONS: Question[] = [
   },
   {
     id: 'beg-5',
+    kind: 'choice',
     difficulty: 'beginner',
     topic: 'strings',
     prompt: 'Что выведет умножение строки на число?',
@@ -112,6 +189,7 @@ export const QUESTIONS: Question[] = [
   },
   {
     id: 'beg-6',
+    kind: 'choice',
     difficulty: 'beginner',
     topic: 'variables',
     prompt: 'Чему будет равна переменная score в конце программы?',
@@ -123,10 +201,34 @@ export const QUESTIONS: Question[] = [
     tip: 'Программисты обычно пишут короче: score += 5 и score -= 2. Это делает точно то же самое!',
     hint: 'Проследи значение score строчка за строчкой сверху вниз.',
     terminalOutput: '13',
+    trace: [
+      {
+        line: 1,
+        note: 'Изначально score = 10.',
+        variables: [{ name: 'score', value: '10', type: 'int', changed: true }],
+      },
+      {
+        line: 2,
+        note: 'Прибавляем 5: 10 + 5 = 15.',
+        variables: [{ name: 'score', value: '15', type: 'int', changed: true }],
+      },
+      {
+        line: 3,
+        note: 'Вычитаем 2: 15 - 2 = 13.',
+        variables: [{ name: 'score', value: '13', type: 'int', changed: true }],
+      },
+      {
+        line: 4,
+        note: 'Выводим итоговое значение score в терминал.',
+        variables: [{ name: 'score', value: '13', type: 'int' }],
+        output: '13',
+      },
+    ],
     xp: 15,
   },
   {
     id: 'beg-7',
+    kind: 'choice',
     difficulty: 'beginner',
     topic: 'strings',
     prompt: 'Что вернёт встроенная функция len()?',
@@ -142,6 +244,7 @@ export const QUESTIONS: Question[] = [
   },
   {
     id: 'beg-8',
+    kind: 'choice',
     difficulty: 'beginner',
     topic: 'variables',
     prompt: 'Что вычисляет двойная звёздочка ** в Python?',
@@ -157,6 +260,7 @@ export const QUESTIONS: Question[] = [
   },
   {
     id: 'beg-9',
+    kind: 'choice',
     difficulty: 'beginner',
     topic: 'variables',
     prompt: 'Какое из этих имён НЕЛЬЗЯ использовать для переменной в Python?',
@@ -172,6 +276,7 @@ export const QUESTIONS: Question[] = [
   },
   {
     id: 'beg-10',
+    kind: 'choice',
     difficulty: 'beginner',
     topic: 'variables',
     prompt: 'Что выведет оператор % (остаток от деления)?',
@@ -185,10 +290,107 @@ export const QUESTIONS: Question[] = [
     terminalOutput: '2',
     xp: 15,
   },
+  {
+    id: 'fill-beg-1',
+    kind: 'fill-blank',
+    difficulty: 'beginner',
+    topic: 'variables',
+    prompt: 'Дополни код оператором целочисленного деления, чтобы программа вывела 6.',
+    code: 'coins = 25\nchests = 4\nper_chest = coins ___ chests\nprint(per_chest)',
+    options: ['/', '//', '%', '**'],
+    acceptedAnswers: ['//'],
+    blankPlaceholder: 'оператор',
+    explanation:
+      'Чтобы разделить 25 монет поровну на 4 сундука и получить целое число 6 без дробной части, используется оператор целочисленного деления //.',
+    tip: 'А оставшуюся 1 монету можно узнать с помощью оператора остатка: 25 % 4 == 1.',
+    hint: 'Какой оператор отбрасывает дробную часть при делении?',
+    terminalOutput: '6',
+    trace: [
+      {
+        line: 1,
+        note: 'coins получает значение 25.',
+        variables: [{ name: 'coins', value: '25', type: 'int', changed: true }],
+      },
+      {
+        line: 2,
+        note: 'chests получает значение 4.',
+        variables: [
+          { name: 'coins', value: '25', type: 'int' },
+          { name: 'chests', value: '4', type: 'int', changed: true },
+        ],
+      },
+      {
+        line: 3,
+        note: '25 // 4 = 6 (целая часть от деления).',
+        variables: [
+          { name: 'coins', value: '25', type: 'int' },
+          { name: 'chests', value: '4', type: 'int' },
+          { name: 'per_chest', value: '6', type: 'int', changed: true },
+        ],
+      },
+      {
+        line: 4,
+        note: 'Выводим 6 в консоль.',
+        variables: [{ name: 'per_chest', value: '6', type: 'int' }],
+        output: '6',
+      },
+    ],
+    xp: 20,
+  },
+  {
+    id: 'fill-beg-2',
+    kind: 'fill-blank',
+    difficulty: 'beginner',
+    topic: 'strings',
+    prompt: 'Впиши встроенную функцию Python, которая подсчитает длину ника (9 символов).',
+    code: 'nickname = "Питон2026"\nlength = ___(nickname)\nprint(length)',
+    options: ['len', 'size', 'count', 'str'],
+    acceptedAnswers: ['len'],
+    blankPlaceholder: 'функция',
+    explanation:
+      'Встроенная функция len() возвращает количество символов в строке (или элементов в списке). В строке "Питон2026" 5 букв и 4 цифры — итого 9.',
+    tip: 'Функции size() в Python нет — всегда используй len() для строк, списков и словарей.',
+    hint: 'Это сокращение от английского слова length (длина).',
+    terminalOutput: '9',
+    xp: 20,
+  },
+  {
+    id: 'bug-beg-1',
+    kind: 'find-bug',
+    difficulty: 'beginner',
+    topic: 'strings',
+    prompt: 'Интерактивный отладчик: кликни по строке, в которой возникнет ошибка TypeError.',
+    code: 'level = 5\nmessage = "Твой уровень: " + level\nprint(message)',
+    buggyLine: 2,
+    fixedLine: 'message = "Твой уровень: " + str(level)',
+    explanation:
+      'В строке 2 программа пытается сложить строку "Твой уровень: " с числом 5. Python не умеет склеивать str и int напрямую — число нужно обернуть в str(level) или использовать f-строку f"Твой уровень: {level}".',
+    tip: 'f-строки автоматически переводят числа в текст: print(f"Твой уровень: {level}") работает без str().',
+    hint: 'Посмотри, в какой строке складываются разные типы данных — текст и число.',
+    terminalOutput: 'TypeError: can only concatenate str (not "int") to str',
+    xp: 20,
+  },
+  {
+    id: 'bug-beg-2',
+    kind: 'find-bug',
+    difficulty: 'beginner',
+    topic: 'variables',
+    prompt: 'Интерактивный отладчик: найди строку с недопустимым именем переменной.',
+    code: 'player = "Макс"\n2score = 100\nprint(player)',
+    buggyLine: 2,
+    fixedLine: 'score_2 = 100',
+    explanation:
+      'В строке 2 имя переменной 2score начинается с цифры, что запрещено правилами синтаксиса Python. Цифры можно ставить в середине или в конце имени (например, score_2).',
+    tip: 'Редакторы кода сразу подчёркивают такие ошибки красной волнистой линией до запуска программы.',
+    hint: 'Имя переменной не может начинаться с цифры.',
+    terminalOutput: 'SyntaxError: invalid decimal literal',
+    xp: 20,
+  },
 
-  // ===================== СРЕДНИЙ (10 вопросов) =====================
+  // ===================== СРЕДНИЙ (10 choice + 2 fill-blank + 2 find-bug) =====================
   {
     id: 'int-1',
+    kind: 'choice',
     difficulty: 'intermediate',
     topic: 'conditions',
     prompt: 'Какое сообщение выведет эта проверка здоровья персонажа?',
@@ -200,10 +402,34 @@ export const QUESTIONS: Question[] = [
     tip: 'Не путай = (присваивание значения) и == (сравнение двух значений на равенство).',
     hint: 'Подставь hp = 0 в каждое условие по порядку сверху вниз.',
     terminalOutput: 'Нужна аптечка',
+    trace: [
+      {
+        line: 1,
+        note: 'Задаём здоровье персонажа hp = 0.',
+        variables: [{ name: 'hp', value: '0', type: 'int', changed: true }],
+      },
+      {
+        line: 2,
+        note: 'Проверяем if hp > 0 → 0 > 0 это False. Переходим к elif.',
+        variables: [{ name: 'hp', value: '0', type: 'int' }],
+      },
+      {
+        line: 4,
+        note: 'Проверяем elif hp == 0 → 0 == 0 это True! Заходим внутрь.',
+        variables: [{ name: 'hp', value: '0', type: 'int' }],
+      },
+      {
+        line: 5,
+        note: 'Печатаем сообщение и выходим из блока условий.',
+        variables: [{ name: 'hp', value: '0', type: 'int' }],
+        output: 'Нужна аптечка',
+      },
+    ],
     xp: 25,
   },
   {
     id: 'int-2',
+    kind: 'choice',
     difficulty: 'intermediate',
     topic: 'loops',
     prompt: 'Какие числа напечатает цикл for с range(3)?',
@@ -215,10 +441,36 @@ export const QUESTIONS: Question[] = [
     tip: 'Чтобы начать счёт с единицы до 3 включительно, пиши range(1, 4).',
     hint: 'В Python почти любой счёт начинается с нуля, а конечное число в range не включается.',
     terminalOutput: '0 1 2 ',
+    trace: [
+      {
+        line: 1,
+        note: 'Итерация 1: i берёт первое значение из range(3) → 0.',
+        variables: [{ name: 'i', value: '0', type: 'int', changed: true }],
+      },
+      {
+        line: 2,
+        note: 'Печатаем 0 и пробел.',
+        variables: [{ name: 'i', value: '0', type: 'int' }],
+        output: '0 ',
+      },
+      {
+        line: 2,
+        note: 'Итерация 2: i = 1, печатаем 1.',
+        variables: [{ name: 'i', value: '1', type: 'int', changed: true }],
+        output: '0 1 ',
+      },
+      {
+        line: 2,
+        note: 'Итерация 3: i = 2, печатаем 2. Цикл завершается.',
+        variables: [{ name: 'i', value: '2', type: 'int', changed: true }],
+        output: '0 1 2 ',
+      },
+    ],
     xp: 25,
   },
   {
     id: 'int-3',
+    kind: 'choice',
     difficulty: 'intermediate',
     topic: 'collections',
     prompt: 'Какой элемент списка выведет индекс -1?',
@@ -234,6 +486,7 @@ export const QUESTIONS: Question[] = [
   },
   {
     id: 'int-4',
+    kind: 'choice',
     difficulty: 'intermediate',
     topic: 'collections',
     prompt: 'Что выведет программа после добавления элемента в список?',
@@ -245,10 +498,29 @@ export const QUESTIONS: Question[] = [
     tip: 'Метод .append() изменяет сам список и ничего не возвращает (точнее, возвращает None).',
     hint: 'Сколько элементов стало в списке после append, и что печатает print?',
     terminalOutput: '4',
+    trace: [
+      {
+        line: 1,
+        note: 'Создаём список из 3 элементов.',
+        variables: [{ name: 'nums', value: '[10, 20, 30]', type: 'list', changed: true }],
+      },
+      {
+        line: 2,
+        note: 'Добавляем 40 в конец списка.',
+        variables: [{ name: 'nums', value: '[10, 20, 30, 40]', type: 'list', changed: true }],
+      },
+      {
+        line: 3,
+        note: 'len(nums) возвращает длину списка: 4.',
+        variables: [{ name: 'nums', value: '[10, 20, 30, 40]', type: 'list' }],
+        output: '4',
+      },
+    ],
     xp: 25,
   },
   {
     id: 'int-5',
+    kind: 'choice',
     difficulty: 'intermediate',
     topic: 'loops',
     prompt: 'Какое число выведет программа после завершения цикла while?',
@@ -260,10 +532,39 @@ export const QUESTIONS: Question[] = [
     tip: 'Всегда следи, чтобы внутри цикла while переменная из условия менялась — иначе получится бесконечный цикл!',
     hint: 'На каком значении n условие n < 4 впервые станет ложным?',
     terminalOutput: '4',
+    trace: [
+      {
+        line: 1,
+        note: 'Начинаем с n = 1.',
+        variables: [{ name: 'n', value: '1', type: 'int', changed: true }],
+      },
+      {
+        line: 3,
+        note: '1 < 4 (True) → увеличиваем n до 2.',
+        variables: [{ name: 'n', value: '2', type: 'int', changed: true }],
+      },
+      {
+        line: 3,
+        note: '2 < 4 (True) → увеличиваем n до 3.',
+        variables: [{ name: 'n', value: '3', type: 'int', changed: true }],
+      },
+      {
+        line: 3,
+        note: '3 < 4 (True) → увеличиваем n до 4.',
+        variables: [{ name: 'n', value: '4', type: 'int', changed: true }],
+      },
+      {
+        line: 4,
+        note: '4 < 4 (False) → цикл остановлен, печатаем 4.',
+        variables: [{ name: 'n', value: '4', type: 'int' }],
+        output: '4',
+      },
+    ],
     xp: 25,
   },
   {
     id: 'int-6',
+    kind: 'choice',
     difficulty: 'intermediate',
     topic: 'conditions',
     prompt: 'Что напечатает логическое выражение с оператором and?',
@@ -279,6 +580,7 @@ export const QUESTIONS: Question[] = [
   },
   {
     id: 'int-7',
+    kind: 'choice',
     difficulty: 'intermediate',
     topic: 'strings',
     prompt: 'Что получится в результате среза строки word[0:3]?',
@@ -294,6 +596,7 @@ export const QUESTIONS: Question[] = [
   },
   {
     id: 'int-8',
+    kind: 'choice',
     difficulty: 'intermediate',
     topic: 'loops',
     prompt: 'Какую сумму подсчитает этот цикл?',
@@ -305,10 +608,48 @@ export const QUESTIONS: Question[] = [
     tip: 'В Python есть встроенная функция sum([2, 4, 6]), которая сразу вернёт 12 в одну строчку!',
     hint: 'Сложи все элементы списка по очереди.',
     terminalOutput: '12',
+    trace: [
+      {
+        line: 1,
+        note: 'Обнуляем счётчик суммы total = 0.',
+        variables: [{ name: 'total', value: '0', type: 'int', changed: true }],
+      },
+      {
+        line: 3,
+        note: 'Шаг 1: x = 2 → total = 0 + 2 = 2.',
+        variables: [
+          { name: 'x', value: '2', type: 'int', changed: true },
+          { name: 'total', value: '2', type: 'int', changed: true },
+        ],
+      },
+      {
+        line: 3,
+        note: 'Шаг 2: x = 4 → total = 2 + 4 = 6.',
+        variables: [
+          { name: 'x', value: '4', type: 'int', changed: true },
+          { name: 'total', value: '6', type: 'int', changed: true },
+        ],
+      },
+      {
+        line: 3,
+        note: 'Шаг 3: x = 6 → total = 6 + 6 = 12.',
+        variables: [
+          { name: 'x', value: '6', type: 'int', changed: true },
+          { name: 'total', value: '12', type: 'int', changed: true },
+        ],
+      },
+      {
+        line: 4,
+        note: 'Выводим сумму 12.',
+        variables: [{ name: 'total', value: '12', type: 'int' }],
+        output: '12',
+      },
+    ],
     xp: 25,
   },
   {
     id: 'int-9',
+    kind: 'choice',
     difficulty: 'intermediate',
     topic: 'strings',
     prompt: 'Что выведет эта f-строка?',
@@ -324,6 +665,7 @@ export const QUESTIONS: Question[] = [
   },
   {
     id: 'int-10',
+    kind: 'choice',
     difficulty: 'intermediate',
     topic: 'loops',
     prompt: 'Как сработает команда break внутри цикла?',
@@ -335,12 +677,99 @@ export const QUESTIONS: Question[] = [
     tip: 'Если нужно пропустить только один шаг и продолжить цикл дальше (получить 1 2 4 5), используй continue вместо break.',
     hint: 'Обрати внимание, что проверка if i == 3 стоит раньше команды print.',
     terminalOutput: '1 2 ',
+    trace: [
+      {
+        line: 4,
+        note: 'i = 1: условие i == 3 ложно, печатаем 1.',
+        variables: [{ name: 'i', value: '1', type: 'int', changed: true }],
+        output: '1 ',
+      },
+      {
+        line: 4,
+        note: 'i = 2: условие i == 3 ложно, печатаем 2.',
+        variables: [{ name: 'i', value: '2', type: 'int', changed: true }],
+        output: '1 2 ',
+      },
+      {
+        line: 3,
+        note: 'i = 3: условие истинно → break досрочно завершает цикл!',
+        variables: [{ name: 'i', value: '3', type: 'int', changed: true }],
+        output: '1 2 ',
+      },
+    ],
     xp: 25,
   },
+  {
+    id: 'fill-int-1',
+    kind: 'fill-blank',
+    difficulty: 'intermediate',
+    topic: 'collections',
+    prompt: 'Дополни метод списка, чтобы добавить "фонарь" в конец рюкзака.',
+    code: 'loot = ["компас", "карта"]\nloot.___("фонарь")\nprint(len(loot))',
+    options: ['add', 'push', 'append', 'insert'],
+    acceptedAnswers: ['append'],
+    blankPlaceholder: 'метод',
+    explanation:
+      'В Python для добавления одного элемента в конец списка используется метод .append(). Метод .add() относится к множествам set, а .push() — из JavaScript.',
+    tip: 'Чтобы объединить сразу два списка, используй метод .extend() или оператор +.',
+    hint: 'Как называется стандартный метод добавления элемента в конец списка в Python?',
+    terminalOutput: '3',
+    xp: 30,
+  },
+  {
+    id: 'fill-int-2',
+    kind: 'fill-blank',
+    difficulty: 'intermediate',
+    topic: 'loops',
+    prompt: 'Впиши функцию генерации чисел, чтобы цикл вывел 1 2 3 4.',
+    code: 'for step in ___(1, 5):\n    print(step, end=" ")',
+    options: ['range', 'list', 'loop', 'count'],
+    acceptedAnswers: ['range'],
+    blankPlaceholder: 'функция',
+    explanation:
+      'Функция range(1, 5) генерирует последовательность целых чисел от 1 до 4 включительно (правая граница 5 не включается).',
+    tip: 'У range есть и третий параметр — шаг: range(0, 10, 2) выдаст только чётные числа 0, 2, 4, 6, 8.',
+    hint: 'Эта встроенная функция почти всегда идёт в паре с циклом for.',
+    terminalOutput: '1 2 3 4 ',
+    xp: 30,
+  },
+  {
+    id: 'bug-int-1',
+    kind: 'find-bug',
+    difficulty: 'intermediate',
+    topic: 'conditions',
+    prompt: 'Интерактивный отладчик: найди строку с синтаксической ошибкой в условии.',
+    code: 'energy = 100\nif energy = 100:\n    print("Энергия полная!")',
+    buggyLine: 2,
+    fixedLine: 'if energy == 100:',
+    explanation:
+      'В строке 2 использован одиночный знак = (присваивание) вместо двойного == (сравнение). Внутри условия if для проверки равенства всегда нужно писать ==.',
+    tip: 'Запомни простое правило: один знак «=» — «положи в коробку», два знака «==» — «проверь, равно ли».',
+    hint: 'Внимательно посмотри на оператор сравнения в строке с if.',
+    terminalOutput: 'SyntaxError: invalid syntax. Maybe you meant \'==\'?',
+    xp: 30,
+  },
+  {
+    id: 'bug-int-2',
+    kind: 'find-bug',
+    difficulty: 'intermediate',
+    topic: 'loops',
+    prompt: 'Интерактивный отладчик: найди строку, из-за которой обратный отсчёт зависнет навсегда!',
+    code: 'count = 3\nwhile count > 0:\n    print("Старт через", count)\n    count += 1',
+    buggyLine: 4,
+    fixedLine: '    count -= 1',
+    explanation:
+      'В строке 4 вместо уменьшения счётчика (count -= 1) написано увеличение (count += 1). Значение станет 4, 5, 6… и условие count > 0 никогда не станет ложным — возникнет бесконечный цикл!',
+    tip: 'Если случайно запустил бесконечный цикл в настоящем терминале, его всегда можно остановить сочетанием клавиш Ctrl + C.',
+    hint: 'Что должно происходить с переменной count на каждом шаге обратного отсчёта?',
+    terminalOutput: 'Бесконечный цикл: 3, 4, 5, 6... (прервано по таймауту)',
+    xp: 30,
+  },
 
-  // ===================== ПРОДВИНУТЫЙ (10 вопросов) =====================
+  // ===================== ПРОДВИНУТЫЙ (10 choice + 2 fill-blank + 2 find-bug) =====================
   {
     id: 'adv-1',
+    kind: 'choice',
     difficulty: 'advanced',
     topic: 'functions',
     prompt: 'Что вернёт и напечатает эта функция?',
@@ -352,10 +781,34 @@ export const QUESTIONS: Question[] = [
     tip: 'Оператор return отправляет результат обратно в место вызова функции, чтобы его можно было использовать в дальнейших вычислениях.',
     hint: 'Сначала вычисли double(6), потом прибавь 1.',
     terminalOutput: '13',
+    trace: [
+      {
+        line: 4,
+        note: 'Вызываем double(6) — передаём x = 6 в функцию.',
+        variables: [{ name: 'x', value: '6', type: 'int', changed: true }],
+      },
+      {
+        line: 2,
+        note: 'Функция вычисляет 6 * 2 = 12 и возвращает 12.',
+        variables: [{ name: 'return', value: '12', type: 'int', changed: true }],
+      },
+      {
+        line: 4,
+        note: 'result = 12 + 1 = 13.',
+        variables: [{ name: 'result', value: '13', type: 'int', changed: true }],
+      },
+      {
+        line: 5,
+        note: 'Печатаем 13.',
+        variables: [{ name: 'result', value: '13', type: 'int' }],
+        output: '13',
+      },
+    ],
     xp: 40,
   },
   {
     id: 'adv-2',
+    kind: 'choice',
     difficulty: 'advanced',
     topic: 'collections',
     prompt: 'Сколько монет останется у героя после обновления словаря?',
@@ -367,10 +820,29 @@ export const QUESTIONS: Question[] = [
     tip: 'Если обратиться к несуществующему ключу через hero["mana"], будет ошибка KeyError. Безопаснее использовать hero.get("mana", 0).',
     hint: 'По ключу "coins" лежит число, к которому прибавили 25.',
     terminalOutput: '75',
+    trace: [
+      {
+        line: 1,
+        note: 'Создаём словарь hero с двумя ключами.',
+        variables: [{ name: 'hero', value: '{"name": "Кот", "coins": 50}', type: 'dict', changed: true }],
+      },
+      {
+        line: 2,
+        note: 'Обновляем hero["coins"]: 50 + 25 = 75.',
+        variables: [{ name: 'hero', value: '{"name": "Кот", "coins": 75}', type: 'dict', changed: true }],
+      },
+      {
+        line: 3,
+        note: 'Печатаем значение по ключу "coins".',
+        variables: [{ name: 'hero["coins"]', value: '75', type: 'int' }],
+        output: '75',
+      },
+    ],
     xp: 40,
   },
   {
     id: 'adv-3',
+    kind: 'choice',
     difficulty: 'advanced',
     topic: 'collections',
     prompt: 'Что выведет срез с шагом -1?',
@@ -386,6 +858,7 @@ export const QUESTIONS: Question[] = [
   },
   {
     id: 'adv-4',
+    kind: 'choice',
     difficulty: 'advanced',
     topic: 'collections',
     prompt: 'Какой список создаст этот генератор списка (list comprehension)?',
@@ -406,6 +879,7 @@ export const QUESTIONS: Question[] = [
   },
   {
     id: 'adv-5',
+    kind: 'choice',
     difficulty: 'advanced',
     topic: 'functions',
     prompt: 'Что выведет функция, если вызвать её без аргументов?',
@@ -421,6 +895,7 @@ export const QUESTIONS: Question[] = [
   },
   {
     id: 'adv-6',
+    kind: 'choice',
     difficulty: 'advanced',
     topic: 'functions',
     prompt: 'Какая ошибка возникнет при запуске этого кода?',
@@ -436,6 +911,7 @@ export const QUESTIONS: Question[] = [
   },
   {
     id: 'adv-7',
+    kind: 'choice',
     difficulty: 'advanced',
     topic: 'collections',
     prompt: 'Внимание, коварная задача! Что напечатает print(a)?',
@@ -447,10 +923,40 @@ export const QUESTIONS: Question[] = [
     tip: 'Чтобы сделать настоящую независимую копию списка, используй b = a.copy() или b = a[:].',
     hint: 'В Python списки — изменяемые объекты. Создаёт ли b = a новый список или ссылку на тот же?',
     terminalOutput: '[1, 2, 3]',
+    trace: [
+      {
+        line: 1,
+        note: 'Создаём список [1, 2] в памяти и связываем с ним имя a.',
+        variables: [{ name: 'a', value: '[1, 2] (id#1)', type: 'list', changed: true }],
+      },
+      {
+        line: 2,
+        note: 'b указывает на ТОТ ЖЕ объект id#1 (копия не создаётся!).',
+        variables: [
+          { name: 'a', value: '[1, 2] (id#1)', type: 'list' },
+          { name: 'b', value: '[1, 2] (id#1)', type: 'list', changed: true },
+        ],
+      },
+      {
+        line: 3,
+        note: 'b.append(3) меняет объект id#1 — видят обе переменные!',
+        variables: [
+          { name: 'a', value: '[1, 2, 3] (id#1)', type: 'list', changed: true },
+          { name: 'b', value: '[1, 2, 3] (id#1)', type: 'list', changed: true },
+        ],
+      },
+      {
+        line: 4,
+        note: 'print(a) выводит обновлённый [1, 2, 3].',
+        variables: [{ name: 'a', value: '[1, 2, 3]', type: 'list' }],
+        output: '[1, 2, 3]',
+      },
+    ],
     xp: 40,
   },
   {
     id: 'adv-8',
+    kind: 'choice',
     difficulty: 'advanced',
     topic: 'functions',
     prompt: 'В функции забыли написать return. Что выведет print()?',
@@ -466,6 +972,7 @@ export const QUESTIONS: Question[] = [
   },
   {
     id: 'adv-9',
+    kind: 'choice',
     difficulty: 'advanced',
     topic: 'collections',
     prompt: 'Что выведет длина множества set()?',
@@ -481,6 +988,7 @@ export const QUESTIONS: Question[] = [
   },
   {
     id: 'adv-10',
+    kind: 'choice',
     difficulty: 'advanced',
     topic: 'collections',
     prompt: 'Какое число достанет этот код из двумерного списка (матрицы)?',
@@ -493,5 +1001,71 @@ export const QUESTIONS: Question[] = [
     hint: 'Первый индекс выбирает строку (с нуля), второй — столбец в этой строке.',
     terminalOutput: '3',
     xp: 40,
+  },
+  {
+    id: 'fill-adv-1',
+    kind: 'fill-blank',
+    difficulty: 'advanced',
+    topic: 'functions',
+    prompt: 'Впиши ключевое слово, чтобы функция вернула квадрат числа 7 (49).',
+    code: 'def square(n):\n    ___ n * n\n\nprint(square(7))',
+    options: ['print', 'return', 'yield', 'break'],
+    acceptedAnswers: ['return'],
+    blankPlaceholder: 'слово',
+    explanation:
+      'Ключевое слово return завершает работу функции и передаёт вычисленное значение (49) обратно в место вызова square(7).',
+    tip: 'После выполнения return любой код ниже внутри той же ветки функции уже не выполнится.',
+    hint: 'Какое слово в Python возвращает результат из функции?',
+    terminalOutput: '49',
+    xp: 45,
+  },
+  {
+    id: 'fill-adv-2',
+    kind: 'fill-blank',
+    difficulty: 'advanced',
+    topic: 'strings',
+    prompt: 'Впиши срез, который перевернёт строку "PYTHON" задом наперёд (NOHTYP).',
+    code: 'word = "PYTHON"\nreversed_word = word[___]\nprint(reversed_word)',
+    options: ['::-1', '-1::', '0:-1', ':-1'],
+    acceptedAnswers: ['::-1'],
+    blankPlaceholder: 'срез',
+    explanation:
+      'Запись [::-1] означает: взять всю строку от начала до конца с шагом -1, то есть в обратном направлении.',
+    tip: 'Попробуй проверить палиндром в одну строку: word == word[::-1].',
+    hint: 'Два двоеточия и отрицательный шаг в конце.',
+    terminalOutput: 'NOHTYP',
+    xp: 45,
+  },
+  {
+    id: 'bug-adv-1',
+    kind: 'find-bug',
+    difficulty: 'advanced',
+    topic: 'functions',
+    prompt: 'Интерактивный отладчик: найди строку внутри функции, из-за которой сложение с 5 падает с TypeError.',
+    code: 'def get_bonus(points):\n    bonus = points * 2\n    print(bonus)\n\ntotal = get_bonus(10) + 5',
+    buggyLine: 3,
+    fixedLine: '    return bonus',
+    explanation:
+      'В строке 3 функция печатает bonus вместо того, чтобы вернуть его через return bonus. Поэтому get_bonus(10) возвращает None, а None + 5 вызывает ошибку TypeError.',
+    tip: 'Функции, которые что-то вычисляют, почти всегда должны возвращать результат через return, а не печатать его.',
+    hint: 'Что должна делать строка 3, чтобы get_bonus(10) отдало число 20 наружу?',
+    terminalOutput: "TypeError: unsupported operand type(s) for +: 'NoneType' and 'int'",
+    xp: 45,
+  },
+  {
+    id: 'bug-adv-2',
+    kind: 'find-bug',
+    difficulty: 'advanced',
+    topic: 'collections',
+    prompt: 'Интерактивный отладчик: кликни по строке, вызывающей ошибку IndexError.',
+    code: 'scores = [10, 20, 30]\nlast = scores[3]\nprint("Последний:", last)',
+    buggyLine: 2,
+    fixedLine: 'last = scores[-1]',
+    explanation:
+      'В строке 2 код обращается к индексу 3, хотя в списке из 3 чисел существуют только индексы 0, 1 и 2. Чтобы взять последний элемент, нужно писать scores[-1] или scores[2].',
+    tip: 'Отрицательный индекс [-1] избавляет от ошибок «на единицу больше» (off-by-one) при чтении последнего элемента.',
+    hint: 'Вспомни, с какого числа начинается нумерация индексов в списке.',
+    terminalOutput: 'IndexError: list index out of range',
+    xp: 45,
   },
 ];

@@ -1,5 +1,6 @@
 import type { AchievementDef, DeveloperRank, UserProgress } from '../types';
-import { DIFFICULTY_META, TOPIC_META } from './questions';
+import { calculateDailyStreak } from '../utils/storage';
+import { DIFFICULTY_META, QUIZ_MODE_LABELS, TOPIC_META } from './questions';
 
 export const DEVELOPER_RANKS: DeveloperRank[] = [
   { level: 1, title: 'Стажёр терминала', minXp: 0, nextXp: 120, promptSymbol: '$' },
@@ -57,6 +58,42 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     check: (p) => p.bestStreak >= 10,
   },
   {
+    id: 'bug-squash-3',
+    title: 'Отладчик кода',
+    description: 'Найди ошибки в 3 задачах интерактивного отладчика («Найди баг»).',
+    xpReward: 65,
+    asciiArt: '[ FIX BUG ]',
+    requirementLabel: '3 найденных бага',
+    check: (p) => p.bugFixedCount >= 3,
+  },
+  {
+    id: 'code-writer-3',
+    title: 'Автор синтаксиса',
+    description: 'Правильно заполни пропуски в 3 задачах формата «Дополни код».',
+    xpReward: 65,
+    asciiArt: '[ WRITE() ]',
+    requirementLabel: '3 задачи с кодом',
+    check: (p) => p.fillBlankCorrectCount >= 3,
+  },
+  {
+    id: 'adaptive-climb',
+    title: 'Адаптивный рост',
+    description: 'Пройди адаптивный тест с точностью не ниже 80%.',
+    xpReward: 75,
+    asciiArt: '[ ADAPT++ ]',
+    requirementLabel: 'Адаптивный >= 80%',
+    check: (p) => p.sessions.some((s) => s.mode === 'adaptive' && s.accuracy >= 80 && s.total >= 5),
+  },
+  {
+    id: 'mistake-conqueror',
+    title: 'Работа над ошибками',
+    description: 'Исправь хотя бы одну задачу, в которой раньше была допущена ошибка.',
+    xpReward: 50,
+    asciiArt: '[ RETRY OK ]',
+    requirementLabel: 'Исправить ошибку',
+    check: (p) => p.mistakesFixedCount >= 1,
+  },
+  {
     id: 'beginner-master',
     title: 'Мастер синтаксиса',
     description: 'Реши верно минимум 8 вопросов базового уровня.',
@@ -86,11 +123,11 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: 'bug-hunter',
     title: 'Охотник за багами',
-    description: 'Набери 20 правильных ответов за всё время обучения.',
+    description: 'Набери 25 правильных ответов за всё время обучения.',
     xpReward: 60,
     asciiArt: '[ DEBUG ]',
-    requirementLabel: '20 верных ответов',
-    check: (p) => p.totalCorrect >= 20,
+    requirementLabel: '25 верных ответов',
+    check: (p) => p.totalCorrect >= 25,
   },
   {
     id: 'speed-compiler',
@@ -155,6 +192,7 @@ export function evaluateAchievements(progress: UserProgress): {
 
 export function generateMarkdownReport(progress: UserProgress, githubLogin?: string | null): string {
   const rank = getDeveloperRank(progress.xp);
+  const dailyStreak = calculateDailyStreak(progress.activityByDate);
   const overallAccuracy =
     progress.totalAnswered > 0
       ? Math.round((progress.totalCorrect / progress.totalAnswered) * 100)
@@ -176,7 +214,7 @@ export function generateMarkdownReport(progress: UserProgress, githubLogin?: str
     }
   );
 
-  const recentSessions = progress.sessions.slice(0, 8).map((s) => {
+  const recentSessions = progress.sessions.slice(0, 10).map((s) => {
     const dateStr = new Date(s.date).toLocaleString('ru-RU', {
       day: '2-digit',
       month: '2-digit',
@@ -184,15 +222,16 @@ export function generateMarkdownReport(progress: UserProgress, githubLogin?: str
       hour: '2-digit',
       minute: '2-digit',
     });
-    const modeLabel =
-      s.mode === 'mixed' ? 'Смешанный' : DIFFICULTY_META[s.mode].label;
+    const modeLabel = QUIZ_MODE_LABELS[s.mode] || s.mode;
     return `| ${dateStr} | ${modeLabel} | ${s.score}/${s.total} (${s.accuracy}%) | +${s.xpEarned} XP | ${s.durationSec} с |`;
   });
 
   return [
     `# PyTerm — Отчёт о прогрессе по Python`,
     ``,
-    githubLogin ? `**Разработчик:** [@${githubLogin}](https://github.com/${githubLogin})` : `**Участник:** Юный разработчик Python`,
+    githubLogin
+      ? `**Разработчик:** [@${githubLogin}](https://github.com/${githubLogin})`
+      : `**Участник:** Юный разработчик Python`,
     `**Дата обновления:** ${new Date().toLocaleString('ru-RU')}`,
     ``,
     `## Профиль`,
@@ -201,6 +240,8 @@ export function generateMarkdownReport(progress: UserProgress, githubLogin?: str
     `- **Опыт (XP):** ${progress.xp} XP`,
     `- **Решено задач:** ${progress.totalCorrect} из ${progress.totalAnswered} (${overallAccuracy}%)`,
     `- **Лучшая серия:** ${progress.bestStreak} подряд`,
+    `- **Ежедневная серия:** ${dailyStreak} дн.`,
+    `- **Найдено багов / дополнено кода:** ${progress.bugFixedCount} / ${progress.fillBlankCorrectCount}`,
     `- **Открыто достижений:** ${unlockedList.length} / ${ACHIEVEMENTS.length}`,
     ``,
     `## Прогресс по уровням сложности`,

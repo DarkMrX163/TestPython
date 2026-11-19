@@ -1,13 +1,15 @@
 import { RotateCcw, Trophy } from 'lucide-react';
 import { useState } from 'react';
 import { ACHIEVEMENTS, DEVELOPER_RANKS, getDeveloperRank } from '../data/achievements';
-import { DIFFICULTY_META, QUESTIONS, TOPIC_META } from '../data/questions';
+import { DIFFICULTY_META, QUESTIONS, QUIZ_MODE_LABELS, TOPIC_META } from '../data/questions';
 import type { Difficulty, TopicId, UserProgress } from '../types';
+import { ActivityHeatmap } from './ActivityHeatmap';
 import { TerminalProgressBar } from './TerminalProgressBar';
 
 interface ProgressDashboardProps {
   progress: UserProgress;
   onStartQuiz: () => void;
+  onPracticeMistakes: () => void;
   onResetProgress: () => void;
 }
 
@@ -20,6 +22,7 @@ function formatDuration(sec: number): string {
 export function ProgressDashboard({
   progress,
   onStartQuiz,
+  onPracticeMistakes,
   onResetProgress,
 }: ProgressDashboardProps) {
   const [confirmReset, setConfirmReset] = useState(false);
@@ -32,6 +35,7 @@ export function ProgressDashboard({
 
   const uniqueSolvedCount = progress.correctQuestionIds.length;
   const totalQuestionsBank = QUESTIONS.length;
+  const mistakesCount = progress.wrongQuestionIds.length;
 
   return (
     <section className="space-y-8">
@@ -42,11 +46,21 @@ export function ProgressDashboard({
             Прогресс обучения
           </h1>
           <p className="text-sm sm:text-base text-[#8B949E]">
-            Твоя статистика по темам, уровням сложности и журнал завершённых тренировок.
+            Календарь практики, статистика по темам, уровням сложности и журнал тренировок.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {mistakesCount > 0 && (
+            <button
+              type="button"
+              onClick={onPracticeMistakes}
+              className="px-4 py-2 text-xs font-mono font-medium bg-[#E3B341]/15 text-[#E3B341] border border-[#E3B341]/50 hover:bg-[#E3B341]/25 rounded-lg transition-colors cursor-pointer whitespace-nowrap"
+            >
+              Разобрать ошибки ({mistakesCount})
+            </button>
+          )}
+
           {!confirmReset ? (
             <button
               type="button"
@@ -107,8 +121,8 @@ export function ProgressDashboard({
           <div className="font-mono text-2xl sm:text-3xl font-semibold text-[#58A6FF] tabular-nums">
             {uniqueSolvedCount} / {totalQuestionsBank}
           </div>
-          <div className="font-mono text-xs text-[#8B949E]">
-            Решено верно в базе
+          <div className="font-mono text-xs text-[#8B949E] tabular-nums">
+            Багов: {progress.bugFixedCount} · Кода: {progress.fillBlankCorrectCount}
           </div>
         </div>
 
@@ -122,6 +136,9 @@ export function ProgressDashboard({
           </div>
         </div>
       </div>
+
+      {/* GitHub-Style Activity Heatmap */}
+      <ActivityHeatmap activityByDate={progress.activityByDate} />
 
       {/* Two-Column Breakdown: Topics + Levels & Ranks */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -190,14 +207,21 @@ export function ProgressDashboard({
                         <span className="text-[#8B949E] font-normal">· {meta.ageRange}</span>
                       </span>
                       <span className="text-[#8B949E] tabular-nums">
-                        {solvedInDiff}/{totalInDiff} задач · {stat.answered > 0 ? Math.round((stat.correct / stat.answered) * 100) : 0}%
+                        {solvedInDiff}/{totalInDiff} задач ·{' '}
+                        {stat.answered > 0 ? Math.round((stat.correct / stat.answered) * 100) : 0}%
                       </span>
                     </div>
                     <TerminalProgressBar
                       value={solvedInDiff}
                       max={totalInDiff}
                       segments={18}
-                      accent={diff === 'beginner' ? 'emerald' : diff === 'intermediate' ? 'sky' : 'gold'}
+                      accent={
+                        diff === 'beginner'
+                          ? 'emerald'
+                          : diff === 'intermediate'
+                            ? 'sky'
+                            : 'gold'
+                      }
                       label={`Прогресс уровня ${meta.label}`}
                     />
                   </div>
@@ -259,9 +283,7 @@ export function ProgressDashboard({
 
         {progress.sessions.length === 0 ? (
           <div className="p-10 text-center space-y-4">
-            <p className="font-mono text-sm text-[#E6EDF3]">
-              Журнал пока пуст
-            </p>
+            <p className="font-mono text-sm text-[#E6EDF3]">Журнал пока пуст</p>
             <p className="text-sm text-[#8B949E] max-w-md mx-auto">
               Пройди свою первую викторину по Python, и здесь появятся результаты, точность, время и полученный опыт.
             </p>
@@ -295,15 +317,13 @@ export function ProgressDashboard({
                     hour: '2-digit',
                     minute: '2-digit',
                   });
-                  const modeLabel =
-                    session.mode === 'mixed'
-                      ? 'Смешанный'
-                      : DIFFICULTY_META[session.mode].label;
 
                   return (
                     <tr key={session.id} className="hover:bg-[#21262D]/50 transition-colors">
                       <td className="py-3 px-6 text-[#8B949E] whitespace-nowrap">{dateLabel}</td>
-                      <td className="py-3 px-4 text-[#E6EDF3] whitespace-nowrap">{modeLabel}</td>
+                      <td className="py-3 px-4 text-[#E6EDF3] whitespace-nowrap">
+                        {QUIZ_MODE_LABELS[session.mode] || session.mode}
+                      </td>
                       <td className="py-3 px-4 text-right text-[#E6EDF3]">
                         {session.score}/{session.total}
                       </td>

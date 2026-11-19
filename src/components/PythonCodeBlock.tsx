@@ -4,6 +4,18 @@ import { useState } from 'react';
 interface PythonCodeBlockProps {
   code: string;
   filename?: string;
+  activeLine?: number | null;
+  // Interactive Find-Bug debugger props
+  interactiveBugMode?: boolean;
+  selectedLine?: number | null;
+  buggyLine?: number;
+  fixedLine?: string;
+  revealed?: boolean;
+  onSelectLine?: (lineNumber: number) => void;
+  // Interactive Fill-in-the-blank props
+  blankValue?: string;
+  blankState?: 'idle' | 'correct' | 'wrong';
+  blankPlaceholder?: string;
 }
 
 const KEYWORDS = new Set([
@@ -106,24 +118,63 @@ function tokenClass(type: Token['type']): string {
   }
 }
 
-export function PythonCodeBlock({ code, filename = 'task.py' }: PythonCodeBlockProps) {
+function renderHighlightedSegment(segment: string) {
+  return tokenizePythonLine(segment).map((tok, tIdx) => (
+    <span key={tIdx} className={tokenClass(tok.type)}>
+      {tok.value}
+    </span>
+  ));
+}
+
+export function PythonCodeBlock({
+  code,
+  filename = 'task.py',
+  activeLine = null,
+  interactiveBugMode = false,
+  selectedLine = null,
+  buggyLine,
+  fixedLine,
+  revealed = false,
+  onSelectLine,
+  blankValue,
+  blankState = 'idle',
+  blankPlaceholder = '___',
+}: PythonCodeBlockProps) {
   const [copied, setCopied] = useState(false);
   const lines = code.split('\n');
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(code);
+      const textToCopy =
+        blankValue && code.includes('___') ? code.replace('___', blankValue) : code;
+      await navigator.clipboard.writeText(textToCopy);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1600);
     } catch {
-      // Clipboard API unavailable in restricted contexts
+      // Clipboard API unavailable
     }
   };
 
   return (
     <div className="rounded-lg border border-[#30363D] bg-[#0D1117] overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2 border-b border-[#30363D] bg-[#161B22]">
-        <span className="font-mono text-xs text-[#8B949E] truncate">{filename}</span>
+        <div className="flex items-center gap-2 font-mono text-xs text-[#8B949E] min-w-0">
+          <span className="truncate">{filename}</span>
+          {interactiveBugMode && !revealed && (
+            <>
+              <span aria-hidden="true">·</span>
+              <span className="text-[#E3B341] whitespace-nowrap">Нажми на строку с ошибкой</span>
+            </>
+          )}
+          {activeLine !== null && (
+            <>
+              <span aria-hidden="true">·</span>
+              <span className="text-[#3FB950] whitespace-nowrap tabular-nums">
+                Строка {activeLine}
+              </span>
+            </>
+          )}
+        </div>
         <button
           type="button"
           onClick={handleCopy}
@@ -143,30 +194,117 @@ export function PythonCodeBlock({ code, filename = 'task.py' }: PythonCodeBlockP
           )}
         </button>
       </div>
-      <div className="p-4 overflow-x-auto font-mono text-sm sm:text-[15px] leading-relaxed">
-        <pre className="m-0">
-          {lines.map((line, idx) => (
-            <div key={idx} className="flex">
-              <span
-                className="select-none w-7 pr-3 text-right text-[#484F58] tabular-nums shrink-0"
-                aria-hidden="true"
-              >
-                {idx + 1}
-              </span>
-              <code className="whitespace-pre">
-                {line.length === 0 ? (
-                  '\u00A0'
-                ) : (
-                  tokenizePythonLine(line).map((tok, tIdx) => (
-                    <span key={tIdx} className={tokenClass(tok.type)}>
-                      {tok.value}
+
+      <div className="py-3 overflow-x-auto font-mono text-sm sm:text-[15px] leading-relaxed">
+        <div className="min-w-max">
+          {lines.map((line, idx) => {
+            const lineNum = idx + 1;
+            const isTraceActive = activeLine === lineNum;
+            const isSelectedBug = selectedLine === lineNum;
+            const isActualBug = revealed && buggyLine === lineNum;
+            const isWrongPick = revealed && isSelectedBug && buggyLine !== lineNum;
+
+            let rowBg = '';
+            if (isActualBug) {
+              rowBg = 'bg-[#2EA043]/15';
+            } else if (isWrongPick) {
+              rowBg = 'bg-[#F85149]/15';
+            } else if (isTraceActive) {
+              rowBg = 'bg-[#58A6FF]/15';
+            } else if (interactiveBugMode && !revealed) {
+              rowBg = 'hover:bg-[#21262D]';
+            }
+
+            const renderLineContent = () => {
+              if (line.length === 0) return '\u00A0';
+              if (line.includes('___') && blankValue !== undefined) {
+                const parts = line.split('___');
+                const slotStyle =
+                  blankState === 'correct'
+                    ? 'border-[#3FB950] bg-[#2EA043]/20 text-[#3FB950]'
+                    : blankState === 'wrong'
+                      ? 'border-[#F85149] bg-[#F85149]/20 text-[#F85149]'
+                      : blankValue
+                        ? 'border-[#58A6FF] bg-[#58A6FF]/15 text-[#E6EDF3]'
+                        : 'border-[#E3B341]/70 bg-[#E3B341]/10 text-[#E3B341]';
+
+                return (
+                  <>
+                    {renderHighlightedSegment(parts[0])}
+                    <span
+                      className={`inline-block px-2 py-0.5 mx-0.5 rounded border text-sm font-semibold align-baseline ${slotStyle}`}
+                    >
+                      {blankValue || blankPlaceholder}
                     </span>
-                  ))
+                    {renderHighlightedSegment(parts.slice(1).join('___'))}
+                  </>
+                );
+              }
+              return renderHighlightedSegment(line);
+            };
+
+            const innerRow = (
+              <>
+                <span
+                  className={`select-none w-11 pr-3 text-right tabular-nums shrink-0 inline-flex items-center justify-end gap-1 ${
+                    isTraceActive
+                      ? 'text-[#58A6FF] font-semibold'
+                      : isActualBug
+                        ? 'text-[#3FB950] font-semibold'
+                        : isWrongPick
+                          ? 'text-[#F85149] font-semibold'
+                          : 'text-[#484F58]'
+                  }`}
+                  aria-hidden="true"
+                >
+                  {isTraceActive && <span>→</span>}
+                  <span>{lineNum}</span>
+                </span>
+                <code className="whitespace-pre flex-1">{renderLineContent()}</code>
+                {isActualBug && (
+                  <span className="ml-4 pr-4 text-xs text-[#3FB950] whitespace-nowrap shrink-0">
+                    {isSelectedBug ? '✓ Баг найден' : '← Строка с багом'}
+                  </span>
                 )}
-              </code>
-            </div>
-          ))}
-        </pre>
+                {isWrongPick && (
+                  <span className="ml-4 pr-4 text-xs text-[#F85149] whitespace-nowrap shrink-0">
+                    ✕ Здесь нет ошибки
+                  </span>
+                )}
+              </>
+            );
+
+            if (interactiveBugMode) {
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  disabled={revealed}
+                  onClick={() => onSelectLine?.(lineNum)}
+                  className={`w-full px-2 py-1.5 flex items-center text-left transition-colors focus-visible:outline-2 focus-visible:outline-[#3FB950] ${rowBg} ${
+                    revealed ? 'cursor-default' : 'cursor-pointer'
+                  }`}
+                >
+                  {innerRow}
+                </button>
+              );
+            }
+
+            return (
+              <div key={idx} className={`px-2 py-0.5 flex items-center ${rowBg}`}>
+                {innerRow}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Fixed Diff Preview after Find-Bug reveal */}
+        {interactiveBugMode && revealed && fixedLine && buggyLine && (
+          <div className="mt-3 mx-3 rounded border border-[#30363D] bg-[#161B22] px-3 py-2 text-xs space-y-1">
+            <div className="text-[#8B949E]">Исправление строки {buggyLine}:</div>
+            <div className="text-[#3FB950] whitespace-pre">+ {fixedLine}</div>
+          </div>
+        )}
       </div>
     </div>
   );

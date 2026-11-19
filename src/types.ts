@@ -1,6 +1,8 @@
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced';
 
-export type QuizMode = Difficulty | 'mixed';
+export type QuizMode = Difficulty | 'mixed' | 'adaptive' | 'mistakes';
+
+export type QuestionKind = 'choice' | 'fill-blank' | 'find-bug';
 
 export type TopicId =
   | 'variables'
@@ -10,18 +12,41 @@ export type TopicId =
   | 'collections'
   | 'functions';
 
+export interface TraceVariable {
+  name: string;
+  value: string;
+  type: string;
+  changed?: boolean;
+}
+
+export interface TraceStep {
+  line: number; // 1-indexed line in code
+  note: string;
+  variables: TraceVariable[];
+  output?: string;
+}
+
 export interface Question {
   id: string;
+  kind: QuestionKind;
   difficulty: Difficulty;
   topic: TopicId;
   prompt: string;
   code?: string;
-  options: [string, string, string, string];
-  correctIndex: number;
+  // For 'choice' and 'fill-blank' (quick chip options in fill-blank)
+  options?: [string, string, string, string];
+  correctIndex?: number;
+  // For 'fill-blank': exact accepted answers (trimmed) and placeholder token '___' inside code
+  acceptedAnswers?: string[];
+  blankPlaceholder?: string;
+  // For 'find-bug': 1-indexed line number containing the bug and fixed line preview
+  buggyLine?: number;
+  fixedLine?: string;
   explanation: string;
   tip: string;
   hint: string;
   terminalOutput: string;
+  trace?: TraceStep[];
   xp: number;
 }
 
@@ -57,12 +82,18 @@ export interface UserProgress {
   currentStreak: number;
   answeredQuestionIds: string[];
   correctQuestionIds: string[];
+  wrongQuestionIds: string[];
+  mistakesFixedCount: number;
+  bugFixedCount: number;
+  fillBlankCorrectCount: number;
   completedModes: QuizMode[];
+  activityByDate: Record<string, number>; // YYYY-MM-DD -> answered count
   topicStats: Record<TopicId, TopicStat>;
   difficultyStats: Record<Difficulty, TopicStat>;
   sessions: QuizSessionRecord[];
   unlockedAchievements: string[];
   githubSync: GitHubSyncMeta;
+  soundEnabled: boolean;
 }
 
 export interface AchievementDef {
