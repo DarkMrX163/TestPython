@@ -1,0 +1,6 @@
+{
+  "name": "PyTerm — Python Викторина",
+  "description": "Интерактивная викторина по программированию на Python для подростков 11–14 лет в стиле терминала с уровнями сложности, объяснениями, достижениями и синхронизацией с GitHub.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
