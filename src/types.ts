@@ -74,6 +74,13 @@ export interface GitHubSyncMeta {
   syncCount: number;
 }
 
+export interface StudentProfile {
+  firstName: string;
+  patronymic: string;
+  school: string;
+  grade: string;
+}
+
 export interface UserProgress {
   xp: number;
   totalAnswered: number;
@@ -94,6 +101,9 @@ export interface UserProgress {
   unlockedAchievements: string[];
   githubSync: GitHubSyncMeta;
   soundEnabled: boolean;
+  studentProfile: StudentProfile;
+  certificateIssuedAt: string | null;
+  certificateId: string | null;
 }
 
 export interface AchievementDef {
@@ -135,4 +145,4 @@ export interface SavedGistItem {
   isPublic: boolean;
 }
 
-export type ActiveTab = 'quiz' | 'progress' | 'achievements' | 'github';
+export type ActiveTab = 'quiz' | 'progress' | 'achievements' | 'certificate' | 'github';

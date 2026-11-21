@@ -1,6 +1,9 @@
-import type { Difficulty, TopicId, UserProgress } from '../types';
+import type { Difficulty, StudentProfile, TopicId, UserProgress } from '../types';
 
 const STORAGE_KEY = 'pyterm_python_quiz_progress_v1';
+
+export const CERTIFICATE_MIN_SOLVED = 5;
+export const CERTIFICATE_MIN_ACCURACY = 50;
 
 export function getLocalDateKey(date = new Date()): string {
   const y = date.getFullYear();
@@ -20,13 +23,67 @@ export function calculateDailyStreak(activityByDate: Record<string, number>): nu
     if ((activityByDate[key] ?? 0) > 0) {
       streak += 1;
     } else if (offset === 0) {
-      // Allow today not yet practiced if yesterday had activity
       continue;
     } else {
       break;
     }
   }
   return streak;
+}
+
+export function isProfileComplete(profile: StudentProfile): boolean {
+  return Boolean(
+    profile.firstName.trim() &&
+      profile.patronymic.trim() &&
+      profile.school.trim() &&
+      profile.grade.trim()
+  );
+}
+
+export interface CertificateEligibility {
+  solvedCount: number;
+  solvedOk: boolean;
+  passedQuizOk: boolean;
+  profileOk: boolean;
+  courseCompleted: boolean;
+  readyToDownload: boolean;
+  withHonors: boolean;
+}
+
+export function getCertificateEligibility(progress: UserProgress): CertificateEligibility {
+  const solvedCount = progress.correctQuestionIds.length;
+  const solvedOk = solvedCount >= CERTIFICATE_MIN_SOLVED;
+  const passedQuizOk = progress.sessions.some(
+    (s) => s.accuracy >= CERTIFICATE_MIN_ACCURACY && s.total >= 1
+  );
+  const profileOk = isProfileComplete(progress.studentProfile);
+  const courseCompleted = solvedOk && passedQuizOk;
+  const readyToDownload = courseCompleted && profileOk;
+  const overallAccuracy =
+    progress.totalAnswered > 0
+      ? Math.round((progress.totalCorrect / progress.totalAnswered) * 100)
+      : 0;
+  const withHonors = solvedCount >= 12 && overallAccuracy >= 80;
+
+  return {
+    solvedCount,
+    solvedOk,
+    passedQuizOk,
+    profileOk,
+    courseCompleted,
+    readyToDownload,
+    withHonors,
+  };
+}
+
+export function generateCertificateId(): string {
+  const year = new Date().getFullYear();
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let suffix = '';
+  for (let i = 0; i < 6; i++) {
+    suffix += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return `PYTERM-${year}-${suffix}`;
 }
 
 export function createInitialProgress(): UserProgress {
@@ -66,6 +123,14 @@ export function createInitialProgress(): UserProgress {
       syncCount: 0,
     },
     soundEnabled: true,
+    studentProfile: {
+      firstName: '',
+      patronymic: '',
+      school: '',
+      grade: '',
+    },
+    certificateIssuedAt: null,
+    certificateId: null,
   };
 }
 
@@ -94,7 +159,6 @@ export function normalizeProgress(raw: unknown): UserProgress {
     }
   }
 
-  // Reconstruct activityByDate from existing sessions if migrating from v1
   const activityByDate: Record<string, number> =
     r.activityByDate && typeof r.activityByDate === 'object' ? { ...r.activityByDate } : {};
   const sessions = Array.isArray(r.sessions) ? r.sessions : [];
@@ -107,6 +171,14 @@ export function normalizeProgress(raw: unknown): UserProgress {
       }
     }
   }
+
+  const sp = r.studentProfile;
+  const studentProfile: StudentProfile = {
+    firstName: typeof sp?.firstName === 'string' ? sp.firstName : '',
+    patronymic: typeof sp?.patronymic === 'string' ? sp.patronymic : '',
+    school: typeof sp?.school === 'string' ? sp.school : '',
+    grade: typeof sp?.grade === 'string' ? sp.grade : '',
+  };
 
   return {
     xp: typeof r.xp === 'number' ? r.xp : base.xp,
@@ -137,6 +209,9 @@ export function normalizeProgress(raw: unknown): UserProgress {
       syncCount: typeof r.githubSync?.syncCount === 'number' ? r.githubSync.syncCount : 0,
     },
     soundEnabled: typeof r.soundEnabled === 'boolean' ? r.soundEnabled : true,
+    studentProfile,
+    certificateIssuedAt: typeof r.certificateIssuedAt === 'string' ? r.certificateIssuedAt : null,
+    certificateId: typeof r.certificateId === 'string' ? r.certificateId : null,
   };
 }
 

@@ -1,6 +1,7 @@
 import { Github, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { AchievementsView } from './components/AchievementsView';
+import { CertificateView } from './components/CertificateView';
 import { GitHubSyncView } from './components/GitHubSyncView';
 import { ProgressDashboard } from './components/ProgressDashboard';
 import { QuizArena, type QuizCompletionPayload } from './components/QuizArena';
@@ -12,11 +13,14 @@ import type {
   GitHubUser,
   QuizMode,
   SavedGistItem,
+  StudentProfile,
   UserProgress,
 } from './types';
 import { playAchievementSound } from './utils/sound';
 import {
   createInitialProgress,
+  generateCertificateId,
+  getCertificateEligibility,
   getLocalDateKey,
   loadProgress,
   normalizeProgress,
@@ -27,6 +31,7 @@ const NAV_ITEMS: Array<{ id: ActiveTab; label: string }> = [
   { id: 'quiz', label: 'Викторина' },
   { id: 'progress', label: 'Прогресс' },
   { id: 'achievements', label: 'Достижения' },
+  { id: 'certificate', label: 'Сертификат' },
   { id: 'github', label: 'GitHub' },
 ];
 
@@ -50,6 +55,18 @@ export default function App() {
   // Persist progress whenever it updates
   useEffect(() => {
     saveProgress(progress);
+  }, [progress]);
+
+  // Automatically issue certificate metadata if progress already meets criteria
+  useEffect(() => {
+    const eligibility = getCertificateEligibility(progress);
+    if (eligibility.courseCompleted && (!progress.certificateIssuedAt || !progress.certificateId)) {
+      setProgress((prev) => ({
+        ...prev,
+        certificateIssuedAt: prev.certificateIssuedAt || new Date().toISOString(),
+        certificateId: prev.certificateId || generateCertificateId(),
+      }));
+    }
   }, [progress]);
 
   const fetchSavedGists = useCallback(async () => {
@@ -131,6 +148,10 @@ export default function App() {
 
   const handleToggleSound = useCallback(() => {
     setProgress((prev) => ({ ...prev, soundEnabled: !prev.soundEnabled }));
+  }, []);
+
+  const handleUpdateProfile = useCallback((studentProfile: StudentProfile) => {
+    setProgress((prev) => ({ ...prev, studentProfile }));
   }, []);
 
   const handleConnectGitHub = useCallback(async () => {
@@ -400,7 +421,15 @@ export default function App() {
       };
 
       const evaluated = evaluateAchievements(draft);
-      setProgress(evaluated.updatedProgress);
+      const finalDraft = evaluated.updatedProgress;
+      const eligibility = getCertificateEligibility(finalDraft);
+
+      if (eligibility.courseCompleted && !finalDraft.certificateIssuedAt) {
+        finalDraft.certificateIssuedAt = new Date().toISOString();
+        finalDraft.certificateId = finalDraft.certificateId || generateCertificateId();
+      }
+
+      setProgress(finalDraft);
 
       if (evaluated.newlyUnlocked.length > 0) {
         setToastAchievement(evaluated.newlyUnlocked[0]);
@@ -419,7 +448,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#0D1117] text-[#E6EDF3] terminal-grid-bg flex flex-col">
       {/* Top Bar: Strict 3-Zone Contract */}
-      <header className="sticky top-0 z-30 border-b border-[#30363D] bg-[#0D1117]/95 backdrop-blur-sm">
+      <header className="no-print sticky top-0 z-30 border-b border-[#30363D] bg-[#0D1117]/95 backdrop-blur-sm">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 h-15 flex items-center justify-between gap-4 sm:gap-8">
           {/* Zone 1: Single-element Brand Wordmark */}
           <button
@@ -479,10 +508,12 @@ export default function App() {
             syncingGitHub={syncingGitHub}
             initialModeRequest={requestedMode}
             onConsumeModeRequest={() => setRequestedMode(null)}
+            onUpdateProfile={handleUpdateProfile}
             onToggleSound={handleToggleSound}
             onCompleteSession={handleCompleteSession}
             onQuickSaveGitHub={() => void handleSaveToGitHub(false, false)}
             onOpenGitHubTab={() => setActiveTab('github')}
+            onOpenCertificateTab={() => setActiveTab('certificate')}
           />
         )}
 
@@ -501,6 +532,14 @@ export default function App() {
         {activeTab === 'achievements' && (
           <AchievementsView
             progress={progress}
+            onStartQuiz={() => setActiveTab('quiz')}
+          />
+        )}
+
+        {activeTab === 'certificate' && (
+          <CertificateView
+            progress={progress}
+            onUpdateProfile={handleUpdateProfile}
             onStartQuiz={() => setActiveTab('quiz')}
           />
         )}
@@ -525,7 +564,7 @@ export default function App() {
       </main>
 
       {/* Quiet Footer */}
-      <footer className="border-t border-[#30363D] bg-[#0D1117]">
+      <footer className="no-print border-t border-[#30363D] bg-[#0D1117]">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-2 font-mono text-xs text-[#6E7681]">
           <span>PyTerm · Интерактивное обучение Python (11–14 лет)</span>
           <span>Прогресс хранится локально и синхронизируется с GitHub Gist</span>
@@ -537,7 +576,7 @@ export default function App() {
         <div
           role="status"
           aria-live="polite"
-          className="fixed bottom-5 right-5 z-40 max-w-sm rounded-lg border border-[#E3B341]/70 bg-[#161B22] p-4 shadow-xl flex items-start gap-3"
+          className="no-print fixed bottom-5 right-5 z-40 max-w-sm rounded-lg border border-[#E3B341]/70 bg-[#161B22] p-4 shadow-xl flex items-start gap-3"
         >
           <div className="space-y-1 flex-1 min-w-0">
             <div className="font-mono text-xs text-[#E3B341]">

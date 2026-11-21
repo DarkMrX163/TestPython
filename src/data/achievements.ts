@@ -1,5 +1,9 @@
 import type { AchievementDef, DeveloperRank, UserProgress } from '../types';
-import { calculateDailyStreak } from '../utils/storage';
+import {
+  CERTIFICATE_MIN_SOLVED,
+  calculateDailyStreak,
+  getCertificateEligibility,
+} from '../utils/storage';
 import { DIFFICULTY_META, QUIZ_MODE_LABELS, TOPIC_META } from './questions';
 
 export const DEVELOPER_RANKS: DeveloperRank[] = [
@@ -193,6 +197,9 @@ export function evaluateAchievements(progress: UserProgress): {
 export function generateMarkdownReport(progress: UserProgress, githubLogin?: string | null): string {
   const rank = getDeveloperRank(progress.xp);
   const dailyStreak = calculateDailyStreak(progress.activityByDate);
+  const cert = getCertificateEligibility(progress);
+  const sp = progress.studentProfile;
+  const studentFullName = `${sp.firstName.trim()} ${sp.patronymic.trim()}`.trim();
   const overallAccuracy =
     progress.totalAnswered > 0
       ? Math.round((progress.totalCorrect / progress.totalAnswered) * 100)
@@ -226,17 +233,35 @@ export function generateMarkdownReport(progress: UserProgress, githubLogin?: str
     return `| ${dateStr} | ${modeLabel} | ${s.score}/${s.total} (${s.accuracy}%) | +${s.xpEarned} XP | ${s.durationSec} с |`;
   });
 
+  const studentInfoLines: string[] = [];
+  if (studentFullName) {
+    studentInfoLines.push(`**Участник:** ${studentFullName}`);
+  } else {
+    studentInfoLines.push(`**Участник:** Юный разработчик Python`);
+  }
+  if (sp.school.trim() || sp.grade.trim()) {
+    studentInfoLines.push(
+      `**Учебное заведение:** ${sp.school.trim() || '—'}${sp.grade.trim() ? `, ${sp.grade.trim()} класс` : ''}`
+    );
+  }
+  if (githubLogin) {
+    studentInfoLines.push(`**GitHub:** [@${githubLogin}](https://github.com/${githubLogin})`);
+  }
+
   return [
     `# PyTerm — Отчёт о прогрессе по Python`,
     ``,
-    githubLogin
-      ? `**Разработчик:** [@${githubLogin}](https://github.com/${githubLogin})`
-      : `**Участник:** Юный разработчик Python`,
+    ...studentInfoLines,
     `**Дата обновления:** ${new Date().toLocaleString('ru-RU')}`,
     ``,
     `## Профиль`,
     ``,
     `- **Ранг:** Уровень ${rank.level} — ${rank.title}`,
+    `- **Сертификат «Начинающий программист»:** ${
+      cert.courseCompleted
+        ? `Получен (${progress.certificateId || 'PYTERM'}${cert.withHonors ? ', с отличием' : ''})`
+        : `В процессе (${cert.solvedCount}/${CERTIFICATE_MIN_SOLVED} задач)`
+    }`,
     `- **Опыт (XP):** ${progress.xp} XP`,
     `- **Решено задач:** ${progress.totalCorrect} из ${progress.totalAnswered} (${overallAccuracy}%)`,
     `- **Лучшая серия:** ${progress.bestStreak} подряд`,

@@ -1,5 +1,6 @@
 import {
   ArrowRight,
+  Award,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -29,13 +30,19 @@ import type {
   Question,
   QuestionKind,
   QuizMode,
+  StudentProfile,
   TopicId,
   UserProgress,
 } from '../types';
 import { playCorrectSound, playStepTick, playWrongSound } from '../utils/sound';
-import { calculateDailyStreak } from '../utils/storage';
+import {
+  CERTIFICATE_MIN_SOLVED,
+  calculateDailyStreak,
+  getCertificateEligibility,
+} from '../utils/storage';
 import { ExecutionTracePanel } from './ExecutionTracePanel';
 import { PythonCodeBlock } from './PythonCodeBlock';
+import { StudentProfileForm } from './StudentProfileForm';
 import { TerminalProgressBar } from './TerminalProgressBar';
 
 export interface SessionAnswerLog {
@@ -60,10 +67,12 @@ interface QuizArenaProps {
   syncingGitHub: boolean;
   initialModeRequest?: QuizMode | null;
   onConsumeModeRequest?: () => void;
+  onUpdateProfile: (profile: StudentProfile) => void;
   onToggleSound: () => void;
   onCompleteSession: (payload: QuizCompletionPayload) => AchievementDef[];
   onQuickSaveGitHub: () => void;
   onOpenGitHubTab: () => void;
+  onOpenCertificateTab: () => void;
 }
 
 type ArenaStage = 'setup' | 'playing' | 'summary';
@@ -140,10 +149,12 @@ export function QuizArena({
   syncingGitHub,
   initialModeRequest,
   onConsumeModeRequest,
+  onUpdateProfile,
   onToggleSound,
   onCompleteSession,
   onQuickSaveGitHub,
   onOpenGitHubTab,
+  onOpenCertificateTab,
 }: QuizArenaProps) {
   const [stage, setStage] = useState<ArenaStage>('setup');
   const [mode, setMode] = useState<QuizMode>('adaptive');
@@ -501,6 +512,7 @@ export function QuizArena({
   const xpInCurrentRank = progress.xp - rank.minXp;
   const xpSpan = rank.nextXp ? rank.nextXp - rank.minXp : 1;
   const dailyStreak = calculateDailyStreak(progress.activityByDate);
+  const certEligibility = getCertificateEligibility(progress);
 
   // ===================== STAGE 1: SETUP =====================
   if (stage === 'setup') {
@@ -770,17 +782,24 @@ export function QuizArena({
             </div>
           </div>
 
-          {/* Right: Developer Profile & Quick Stats */}
+          {/* Right: Student Form, Developer Profile & Certificate Status */}
           <aside className="lg:col-span-4 rounded-lg border border-[#30363D] bg-[#161B22] p-6 flex flex-col justify-between gap-6">
-            <div className="space-y-6">
-              <div className="space-y-2 pb-5 border-b border-[#30363D]">
+            <div className="space-y-5">
+              {/* Student Profile Form right before starting */}
+              <StudentProfileForm
+                profile={progress.studentProfile}
+                onChange={onUpdateProfile}
+                compact
+              />
+
+              <div className="space-y-2 pb-4 border-b border-[#30363D]">
                 <div className="font-mono text-xs text-[#8B949E]">
                   Профиль разработчика · Уровень {rank.level}
                 </div>
                 <div className="font-mono text-xl font-semibold text-[#E6EDF3]">
                   {rank.title}
                 </div>
-                <div className="pt-2 space-y-2">
+                <div className="pt-1.5 space-y-2">
                   <div className="flex items-center justify-between font-mono text-xs tabular-nums">
                     <span className="text-[#E3B341] font-medium">{progress.xp} XP</span>
                     <span className="text-[#8B949E]">
@@ -826,45 +845,56 @@ export function QuizArena({
                 </div>
               </div>
 
-              {/* Quick Interactive Formats Counter */}
-              <div className="pt-4 border-t border-[#30363D] space-y-2 font-mono text-xs tabular-nums">
-                <div className="flex items-center justify-between text-[#8B949E]">
-                  <span>Найдено багов</span>
-                  <span className="text-[#E6EDF3]">{progress.bugFixedCount}</span>
-                </div>
-                <div className="flex items-center justify-between text-[#8B949E]">
-                  <span>Дополнено кода</span>
-                  <span className="text-[#E6EDF3]">{progress.fillBlankCorrectCount}</span>
-                </div>
-                <div className="flex items-center justify-between text-[#8B949E]">
-                  <span>Открыто достижений</span>
-                  <span className="text-[#E3B341]">
-                    {progress.unlockedAchievements.length} / {ACHIEVEMENTS.length}
+              {/* Certificate Progress Box */}
+              <div className="pt-4 border-t border-[#30363D] space-y-2.5 font-mono text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[#8B949E]">Сертификат курса</span>
+                  <span
+                    className={
+                      certEligibility.courseCompleted ? 'text-[#3FB950]' : 'text-[#E3B341]'
+                    }
+                  >
+                    {certEligibility.courseCompleted
+                      ? 'Открыт'
+                      : `${certEligibility.solvedCount}/${CERTIFICATE_MIN_SOLVED} задач`}
                   </span>
                 </div>
+                <button
+                  type="button"
+                  onClick={onOpenCertificateTab}
+                  className={`w-full inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg border transition-colors cursor-pointer whitespace-nowrap ${
+                    certEligibility.courseCompleted
+                      ? 'border-[#3FB950]/60 bg-[#2EA043]/15 text-[#3FB950] hover:bg-[#2EA043]/25'
+                      : 'border-[#30363D] bg-[#0D1117] text-[#E6EDF3] hover:border-[#58A6FF]'
+                  }`}
+                >
+                  <Award className="w-3.5 h-3.5" />
+                  <span>
+                    {certEligibility.courseCompleted
+                      ? 'Открыть сертификат'
+                      : 'Сертификат программиста'}
+                  </span>
+                </button>
               </div>
             </div>
 
             {/* Recent Session Snippet */}
-            <div className="pt-5 border-t border-[#30363D] space-y-2.5 font-mono text-xs">
-              <div className="text-[#8B949E]">Последняя тренировка</div>
-              {progress.sessions.length > 0 ? (
-                <div className="p-3.5 rounded-lg bg-[#0D1117] border border-[#30363D] space-y-1.5 tabular-nums">
-                  <div className="flex items-center justify-between text-[#E6EDF3]">
-                    <span>{QUIZ_MODE_LABELS[progress.sessions[0].mode]}</span>
-                    <span className="text-[#3FB950] font-medium">
-                      {progress.sessions[0].score}/{progress.sessions[0].total} (
-                      {progress.sessions[0].accuracy}%)
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-[#8B949E]">
-                    <span>+{progress.sessions[0].xpEarned} XP</span>
-                    <span>{formatTimer(progress.sessions[0].durationSec)}</span>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-3.5 rounded-lg bg-[#0D1117] border border-[#30363D] text-[#8B949E] leading-relaxed">
-                  Запусти адаптивный тест — сложность подстроится под твой уровень автоматически.
+            <div className="pt-4 border-t border-[#30363D] space-y-2 font-mono text-xs">
+              <div className="flex items-center justify-between text-[#8B949E]">
+                <span>Достижения</span>
+                <span className="text-[#E3B341] tabular-nums">
+                  {progress.unlockedAchievements.length} / {ACHIEVEMENTS.length}
+                </span>
+              </div>
+              {progress.sessions.length > 0 && (
+                <div className="p-3 rounded-lg bg-[#0D1117] border border-[#30363D] flex items-center justify-between gap-2 tabular-nums">
+                  <span className="text-[#8B949E] truncate">
+                    {QUIZ_MODE_LABELS[progress.sessions[0].mode]}
+                  </span>
+                  <span className="text-[#3FB950] font-medium whitespace-nowrap">
+                    {progress.sessions[0].score}/{progress.sessions[0].total} (
+                    {progress.sessions[0].accuracy}%)
+                  </span>
                 </div>
               )}
             </div>
@@ -1305,6 +1335,17 @@ export function QuizArena({
           </div>
 
           <div className="flex flex-wrap items-center gap-3 shrink-0">
+            {certEligibility.courseCompleted && (
+              <button
+                type="button"
+                onClick={onOpenCertificateTab}
+                className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-mono font-medium text-[#E3B341] border border-[#E3B341]/60 bg-[#E3B341]/10 hover:bg-[#E3B341]/20 rounded-lg transition-colors cursor-pointer whitespace-nowrap"
+              >
+                <Award className="w-4 h-4" />
+                <span>Получить сертификат</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => startQuiz()}
